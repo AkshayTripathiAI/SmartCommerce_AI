@@ -16,8 +16,23 @@ class VectorStore:
     async def get_client(self) -> AsyncQdrantClient:
         """Get or create Qdrant client."""
         if self._client is None:
-            self._client = AsyncQdrantClient(url=ai_settings.qdrant_url)
+            if ai_settings.qdrant_url == ":memory:":
+                self._client = AsyncQdrantClient(location=":memory:")
+            else:
+                self._client = AsyncQdrantClient(
+                    url=ai_settings.qdrant_url,
+                    api_key=ai_settings.qdrant_api_key or None,
+                )
         return self._client
+    
+    async def count(self, collection_name: str) -> int:
+        """Number of points in a collection (0 if it does not exist)."""
+        client = await self.get_client()
+        try:
+            result = await client.count(collection_name=collection_name)
+            return result.count
+        except Exception:
+            return 0
     
     async def ensure_collections(self):
         """Ensure required collections exist."""
@@ -255,6 +270,7 @@ class VectorStore:
         """Close the client connection."""
         if self._client:
             await self._client.close()
+            self._client = None
 
 
 # Singleton instance

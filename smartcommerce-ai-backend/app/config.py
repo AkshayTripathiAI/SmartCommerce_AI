@@ -14,11 +14,17 @@ class Settings(BaseSettings):
     database_url: str
     database_url_sync: str = ""
     
-    # Redis
-    redis_url: str = "redis://localhost:6379"
+    # Redis (optional). Leave empty to use in-process caching and chat memory.
+    redis_url: str = ""
     
-    # Qdrant
+    # Qdrant. Use ":memory:" to run an in-process index that is rebuilt on startup.
     qdrant_url: str = "http://localhost:6333"
+    qdrant_api_key: str = ""
+    
+    # Demo / free-tier hosting
+    auto_bootstrap: bool = False  # seed DB + build vector index on startup when empty
+    chat_rate_limit_per_hour: int = 30  # per user, 0 disables
+    chat_daily_limit: int = 500  # whole app, protects the LLM quota; 0 disables
     
     # JWT
     jwt_secret_key: str
@@ -33,7 +39,10 @@ class Settings(BaseSettings):
     
     @property
     def cors_origins_list(self) -> List[str]:
-        return json.loads(self.cors_origins)
+        value = self.cors_origins.strip()
+        if value.startswith("["):
+            return json.loads(value)
+        return [o.strip() for o in value.split(",") if o.strip()]
     
     class Config:
         env_file = ".env"

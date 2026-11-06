@@ -1,5 +1,6 @@
 """Seed sample products and categories into the database."""
 import asyncio
+import os
 import sys
 from pathlib import Path
 
@@ -55,7 +56,7 @@ async def seed_database():
             admin = User(
                 email="admin@smartcommerce.ai",
                 username="admin",
-                password_hash=hash_password("admin123"),
+                password_hash=hash_password(os.environ.get("ADMIN_PASSWORD", "admin123")),
                 full_name="Admin User",
                 role=UserRole.ADMIN,
             )
@@ -82,6 +83,7 @@ async def seed_database():
             
             # Create products
             for prod_data in PRODUCTS:
+                prod_data = dict(prod_data)
                 category_slug = prod_data.pop("category_slug")
                 category = category_map.get(category_slug)
                 product = Product(
@@ -94,7 +96,7 @@ async def seed_database():
             print("✅ Database seeded successfully!")
             print(f"   - Created {len(CATEGORIES)} categories")
             print(f"   - Created {len(PRODUCTS)} products")
-            print(f"   - Created admin user (admin / admin123)")
+            print(f"   - Created admin user (admin / ADMIN_PASSWORD or admin123)")
             print(f"   - Created test user (testuser / password123)")
             
         except Exception as e:

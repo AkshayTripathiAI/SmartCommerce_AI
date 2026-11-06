@@ -2,10 +2,9 @@
 import hashlib
 from typing import List, Optional
 import google.generativeai as genai
-import redis.asyncio as redis
 
-from app.config import settings
 from app.ai.config import ai_settings
+from app.core.kv import get_kv
 
 
 class EmbeddingService:
@@ -15,13 +14,10 @@ class EmbeddingService:
         genai.configure(api_key=ai_settings.google_api_key)
         self.model = ai_settings.embedding_model
         self.dimensions = ai_settings.embedding_dimensions
-        self._redis: Optional[redis.Redis] = None
     
-    async def get_redis(self) -> redis.Redis:
-        """Get or create Redis connection."""
-        if self._redis is None:
-            self._redis = redis.from_url(settings.redis_url, decode_responses=False)
-        return self._redis
+    async def get_redis(self):
+        """Get the cache client (Redis or in-process fallback)."""
+        return get_kv(decode_responses=False)
     
     def _cache_key(self, text: str) -> str:
         """Generate cache key for text."""
@@ -63,6 +59,7 @@ class EmbeddingService:
                 model=self.model,
                 content=text,
                 task_type="retrieval_document",
+                output_dimensionality=self.dimensions,
             )
         )
         
@@ -144,6 +141,7 @@ class EmbeddingService:
                     model=self.model,
                     content=texts_to_embed,
                     task_type="retrieval_document",
+                    output_dimensionality=self.dimensions,
                 )
             )
             
@@ -208,6 +206,7 @@ class EmbeddingService:
                 model=self.model,
                 content=query,
                 task_type="retrieval_query",
+                output_dimensionality=self.dimensions,
             )
         )
         
@@ -229,9 +228,7 @@ class EmbeddingService:
         return embedding
     
     async def close(self):
-        """Close Redis connection."""
-        if self._redis:
-            await self._redis.close()
+        """Nothing to close: the cache client is shared (see app.core.kv)."""
 
 
 # Singleton instance

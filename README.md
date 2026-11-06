@@ -2,7 +2,9 @@
 
 🛒 **AI-Powered E-Commerce Platform** with semantic search, personalized recommendations, and a conversational shopping assistant.
 
-![SmartCommerce AI](https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=800)
+![SmartCommerce AI product catalog](docs/products.png)
+
+**Live demo:** _coming soon_ · demo login `testuser` / `password123` (the free-tier backend sleeps when idle, so the first request can take up to a minute)
 
 ## ✨ Features
 
@@ -61,7 +63,7 @@ graph TD
 
 ### Key AI Components:
 - **Multi-Provider Support**: Switch between **Google Gemini** (cloud) and **Ollama** (local) via `.env`.
-- **Hybrid Search**: Combines traditional filtering with **Vector Embeddings** (text-embedding-004) for semantic matching.
+- **Hybrid Search**: Combines traditional filtering with **Vector Embeddings** (`gemini-embedding-001`, 768 dims) for semantic matching.
 - **RAG System**: Policy questions (returns, shipping) are answered by chunking documents and performing similarity search in Qdrant.
 - **Tool-Calling Loop**: Uses a recursive loop (up to 5 turns) to ensure complex requests (search -> details -> add) are handled in a single message turn.
 
@@ -210,7 +212,7 @@ SmartCommerce_AI/
 - **FastAPI** - High-performance Python API
 - **SQLAlchemy** - Async ORM with PostgreSQL
 - **Qdrant** - Vector database for embeddings
-- **Redis** - Caching and session storage
+- **Redis** (optional) - Embedding cache and chat memory; falls back to in-process storage when `REDIS_URL` is empty
 - **Google Gemini** - Embeddings and chat
 
 ### Frontend
@@ -218,6 +220,20 @@ SmartCommerce_AI/
 - **Tailwind CSS** - Utility-first styling
 - **Zustand** - State management
 - **React Icons** - Icon library
+
+## ☁️ Free-tier deployment
+
+The repo is set up to run on free hosting with no Docker host of your own:
+
+| Piece | Where | Notes |
+|---|---|---|
+| Frontend (Next.js) | Vercel | Root directory `smartcommerce-ai-frontend`. Set `BACKEND_URL` **before** the first build: rewrites are baked in at build time. |
+| Backend (FastAPI) | Render (free, Docker) | `render.yaml` blueprint at the repo root |
+| PostgreSQL | Neon (free) | Paste the connection string into `DATABASE_URL`; `sslmode=require` is handled automatically |
+| Vector search | In-process Qdrant | `QDRANT_URL=:memory:`, rebuilt from Postgres on startup |
+| LLM + embeddings | Gemini API | `GOOGLE_API_KEY`; models are configurable via `CHAT_MODEL` / `EMBEDDING_MODEL` |
+
+With `AUTO_BOOTSTRAP=true` the API seeds the catalog and builds the vector index on first start, so no manual scripts are needed. Chat is rate limited per user (`CHAT_RATE_LIMIT_PER_HOUR`) and globally (`CHAT_DAILY_LIMIT`) to protect the API quota, and the seeded admin password comes from `ADMIN_PASSWORD` (Render generates one).
 
 ## 📄 License
 

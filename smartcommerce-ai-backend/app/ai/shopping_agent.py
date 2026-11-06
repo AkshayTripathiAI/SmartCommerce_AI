@@ -6,28 +6,31 @@ from typing import Optional, List, Dict, Any
 from uuid import UUID
 import google.generativeai as genai
 from google.generativeai.types import content_types
-import redis.asyncio as redis
 from openai import AsyncOpenAI
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.config import settings
 from app.ai.config import ai_settings
+from app.core.kv import get_kv
 from app.ai.tools import AgentTools, TOOL_DEFINITIONS
 
 logger = logging.getLogger(__name__)
 
 class ConversationMemory:
-    """Redis-backed conversation memory."""
+    """Conversation memory (Redis when configured, in-process otherwise)."""
     
     def __init__(self):
-        self._redis: Optional[redis.Redis] = None
         self.max_history = 20  # Max messages to keep
     
-    async def get_redis(self) -> redis.Redis:
-        if self._redis is None:
-            self._redis = redis.from_url(settings.redis_url, decode_responses=True)
-        return self._redis
+    async def get_redis(self):
+        return get_kv(decode_responses=True)
+    
+    def _trim(self, history: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """Keep the last messages, starting on a user turn so tool call/response pairs stay intact."""
+        history = history[-self.max_history:]
+        while history and history[0]["role"] != "user":
+            history = history[1:]
+        return history
     
     def _key(self, user_id: UUID) -> str:
         return f"chat:history:{user_id}"
@@ -50,7 +53,7 @@ class ConversationMemory:
         
         # Trim to max history
         if len(history) > self.max_history:
-            history = history[-self.max_history:]
+            history = self._trim(history)
         
         r = await self.get_redis()
         await r.setex(
@@ -76,7 +79,7 @@ class ConversationMemory:
         })
         
         if len(history) > self.max_history:
-            history = history[-self.max_history:]
+            history = self._trim(history)
         
         r = await self.get_redis()
         await r.setex(self._key(user_id), 86400 * 7, json.dumps(history))
@@ -87,8 +90,7 @@ class ConversationMemory:
         await r.delete(self._key(user_id))
     
     async def close(self):
-        if self._redis:
-            await self._redis.close()
+        """Nothing to close: the client is shared (see app.core.kv)."""
 
 
 class ShoppingAgent:
@@ -192,6 +194,12 @@ IMPORTANT: Stay in character and never reveal technical details or internal reas
         if not tool_method:
             return {"error": f"Unknown tool: {name}"}
         
+        # Gemini returns all numbers as floats (e.g. quantity=1.0); integer DB columns need ints.
+        args = {
+            k: int(v) if isinstance(v, float) and v.is_integer() and k in ("quantity", "limit") else v
+            for k, v in args.items()
+        }
+
         try:
             # Special handling for missing product_id if model guessed wrong
             if name == "add_to_cart" and "product_id" not in args:
@@ -212,47 +220,54 @@ IMPORTANT: Stay in character and never reveal technical details or internal reas
     async def _chat_gemini(self, message: str) -> dict:
         import asyncio
         history = await self.memory.get_history(self.user_id)
-        await self.memory.add_message(self.user_id, "user", message)
-        
         chat = self.gemini_model.start_chat(history=history)
-        
-        loop = asyncio.get_event_loop()
-        response = await loop.run_in_executor(None, lambda: chat.send_message(message))
-        
+        loop = asyncio.get_running_loop()
         tool_calls = []
         
-        while response.candidates[0].content.parts:
-            part = response.candidates[0].content.parts[0]
-            if hasattr(part, 'function_call') and part.function_call.name:
-                fc = part.function_call
-                args = dict(fc.args) if fc.args else {}
+        try:
+            response = await loop.run_in_executor(None, lambda: chat.send_message(message))
+            
+            # Resolve tool calls (Gemini may request several in parallel); cap the rounds.
+            for _ in range(5):
+                parts = response.candidates[0].content.parts if response.candidates else []
+                calls = [p.function_call for p in parts if getattr(p, "function_call", None) and p.function_call.name]
+                if not calls:
+                    break
                 
-                result = await self._execute_tool(fc.name, args)
-                tool_calls.append({"name": fc.name, "args": args, "result": result})
-                
-                await self.memory.add_function_call(self.user_id, fc.name, args, result)
+                response_parts = []
+                for fc in calls:
+                    args = dict(fc.args) if fc.args else {}
+                    result = await self._execute_tool(fc.name, args)
+                    tool_calls.append({"name": fc.name, "args": args, "result": result})
+                    response_parts.append(genai.protos.Part(
+                        function_response=genai.protos.FunctionResponse(
+                            name=fc.name, response={"result": result}
+                        )
+                    ))
                 
                 response = await loop.run_in_executor(
                     None,
-                    lambda r=result, n=fc.name: chat.send_message(
-                        genai.protos.Content(
-                            parts=[genai.protos.Part(
-                                function_response=genai.protos.FunctionResponse(
-                                    name=n,
-                                    response={"result": r}
-                                )
-                            )]
-                        )
-                    )
+                    lambda rp=response_parts: chat.send_message(genai.protos.Content(parts=rp)),
                 )
-            else:
-                break
+            
+            final_text = ""
+            if response.candidates:
+                for part in response.candidates[0].content.parts:
+                    if getattr(part, "text", None):
+                        final_text += part.text
+        except Exception as e:
+            logger.error(f"Gemini API error: {e}", exc_info=True)
+            return {
+                "response": "I'm sorry, I'm having a bit of trouble connecting right now. Please try again in a moment. 🔄",
+                "tool_calls": tool_calls or None,
+            }
         
-        final_text = ""
-        for part in response.candidates[0].content.parts:
-            if hasattr(part, 'text') and part.text:
-                final_text += part.text
+        if not final_text:
+            final_text = "I'm sorry, I couldn't come up with an answer for that. Could you rephrase?"
         
+        # Persist the turn only after it succeeded, so a failed call never leaves a dangling message.
+        # Only text turns are replayed as history; tool context lives within a single turn.
+        await self.memory.add_message(self.user_id, "user", message)
         await self.memory.add_message(self.user_id, "model", final_text)
         
         return {

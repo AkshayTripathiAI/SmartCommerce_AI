@@ -1,3 +1,5 @@
+import asyncio
+import logging
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -5,6 +7,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
 from app.api.v1 import router as api_v1_router
 from app.db import init_db
+from app import bootstrap
+
+logging.basicConfig(level=logging.INFO)
 
 
 @asynccontextmanager
@@ -12,7 +17,13 @@ async def lifespan(app: FastAPI):
     """Application lifespan handler."""
     # Startup: Initialize database tables
     await init_db()
+    task = None
+    if settings.auto_bootstrap:
+        # Run in the background so the server binds its port (and passes health checks) immediately.
+        task = asyncio.create_task(bootstrap.run_bootstrap())
     yield
+    if task and not task.done():
+        task.cancel()
     # Shutdown: cleanup if needed
 
 
@@ -52,4 +63,4 @@ async def root():
 @app.get("/health", tags=["Health"])
 async def health_check():
     """Health check endpoint."""
-    return {"status": "ok"}
+    return {"status": "ok", "bootstrap": bootstrap.state["status"]}

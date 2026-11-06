@@ -1,6 +1,6 @@
 from typing import Optional, List
 from uuid import UUID
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 # --- Chat Schemas ---
@@ -13,7 +13,7 @@ class ChatMessage(BaseModel):
 
 class ChatRequest(BaseModel):
     """Schema for chat request."""
-    message: str
+    message: str = Field(..., min_length=1, max_length=1000)
 
 
 class ChatResponse(BaseModel):

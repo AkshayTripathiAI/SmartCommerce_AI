@@ -193,6 +193,16 @@ export default function LoginPage() {
                         <p className="font-medium mb-2">Demo Credentials:</p>
                         <p>Username: <code className="bg-gray-200 px-1 rounded">testuser</code></p>
                         <p>Password: <code className="bg-gray-200 px-1 rounded">password123</code></p>
+                        <button
+                            type="button"
+                            onClick={() => setFormData({ ...formData, username: 'testuser', password: 'password123' })}
+                            className="mt-3 text-primary-600 font-medium hover:underline"
+                        >
+                            Fill demo credentials
+                        </button>
+                        <p className="mt-3 text-xs text-gray-400">
+                            The demo backend runs on a free tier and sleeps when idle, so the first request can take up to a minute.
+                        </p>
                     </div>
                 )}
             </div>

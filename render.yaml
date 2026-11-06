@@ -1,0 +1,29 @@
+# Render Blueprint: deploys the SmartCommerce AI backend on the free plan.
+# Postgres is external (e.g. Neon free tier); Qdrant runs in-process and is rebuilt on startup.
+services:
+  - type: web
+    name: smartcommerce-ai-api
+    runtime: docker
+    plan: free
+    rootDir: smartcommerce-ai-backend
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /health
+    envVars:
+      - key: DATABASE_URL
+        sync: false # paste the Neon connection string
+      - key: GOOGLE_API_KEY
+        sync: false
+      - key: JWT_SECRET_KEY
+        generateValue: true
+      - key: ADMIN_PASSWORD
+        generateValue: true
+      - key: QDRANT_URL
+        value: ":memory:"
+      - key: AUTO_BOOTSTRAP
+        value: "true"
+      - key: CORS_ORIGINS
+        value: '["https://smartcommerce-ai.vercel.app"]'
+      - key: CHAT_RATE_LIMIT_PER_HOUR
+        value: "30"
+      - key: CHAT_DAILY_LIMIT
+        value: "500"

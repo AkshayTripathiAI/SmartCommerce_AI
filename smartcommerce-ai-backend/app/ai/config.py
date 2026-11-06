@@ -7,9 +7,9 @@ class AISettings(BaseSettings):
     
     # Google Gemini
     google_api_key: str = ""
-    embedding_model: str = "models/text-embedding-004"
-    embedding_dimensions: int = 768  # Gemini embedding dimensions
-    chat_model: str = "gemini-1.5-flash"
+    embedding_model: str = "models/gemini-embedding-001"
+    embedding_dimensions: int = 768  # truncated via output_dimensionality
+    chat_model: str = "gemini-2.5-flash-lite"
     
     # Provider Selection
     ai_provider: str = "gemini"  # "gemini" or "ollama"
@@ -19,7 +19,8 @@ class AISettings(BaseSettings):
     ollama_model: str = "llama3.2"
     
     # Qdrant
-    qdrant_url: str = "http://localhost:6333"
+    qdrant_url: str = "http://localhost:6333"  # or ":memory:" for an in-process index
+    qdrant_api_key: str = ""
     qdrant_collection_products: str = "products"
     qdrant_collection_policies: str = "policies"
     

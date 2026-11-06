@@ -127,7 +127,7 @@ async def index_policies():
     
     for policy_file in policy_files:
         policy_type = policy_file.stem  # e.g., "shipping", "returns"
-        content = policy_file.read_text()
+        content = policy_file.read_text(encoding="utf-8")
         
         # Split into chunks (by sections)
         chunks = split_into_chunks(content, chunk_size=500, overlap=50)

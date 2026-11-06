@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { ProductCard } from '@/components/ProductCard'
 import { FiSearch, FiFilter } from 'react-icons/fi'
@@ -22,7 +22,7 @@ interface Category {
     slug: string
 }
 
-export default function ProductsPage() {
+function ProductsContent() {
     const searchParams = useSearchParams()
     const categoryFilter = searchParams.get('category')
 
@@ -169,5 +169,14 @@ export default function ProductsPage() {
                 </div>
             )}
         </div>
+    )
+}
+
+// useSearchParams() needs a Suspense boundary so the page can be prerendered.
+export default function ProductsPage() {
+    return (
+        <Suspense fallback={<div className="max-w-7xl mx-auto px-4 py-12 text-gray-500">Loading products...</div>}>
+            <ProductsContent />
+        </Suspense>
     )
 }
