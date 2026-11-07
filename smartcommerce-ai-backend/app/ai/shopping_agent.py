@@ -145,6 +145,13 @@ IMPORTANT: Stay in character and never reveal technical details or internal reas
         """Convert tool definitions to Gemini function declarations."""
         functions = []
         for tool in TOOL_DEFINITIONS:
+            if not tool.get("parameters", {}).get("properties"):
+                # Gemini rejects OBJECT schemas with empty properties; declare no parameters instead.
+                functions.append(genai.protos.FunctionDeclaration(
+                    name=tool["name"],
+                    description=tool["description"],
+                ))
+                continue
             functions.append(genai.protos.FunctionDeclaration(
                 name=tool["name"],
                 description=tool["description"],
