@@ -5,6 +5,7 @@ configured CHAT_MODEL disappears, ask the API which models support generateConte
 back to the closest available Flash model.
 """
 import logging
+import re
 from typing import List, Optional
 
 import google.generativeai as genai
@@ -66,4 +67,15 @@ def resolve_chat_model() -> str:
 
 def resolved_model() -> Optional[str]:
     """The model chosen so far (None until the first chat request resolves it)."""
+    return _resolved
+
+
+def replacement_from_error(error: Exception) -> Optional[str]:
+    """If Gemini says a model is retired ("... use models/X ..."), switch to X and return it."""
+    global _resolved
+    match = re.search(r"no longer available.*?use (?:models/)?([\w.-]+)", str(error), re.S)
+    if not match:
+        return None
+    _resolved = match.group(1).rstrip(".")
+    logger.warning("Gemini retired the current model; switching to %s", _resolved)
     return _resolved

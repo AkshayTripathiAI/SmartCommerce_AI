@@ -11,7 +11,7 @@ from openai import AsyncOpenAI
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.ai.config import ai_settings
-from app.ai.models import resolve_chat_model
+from app.ai.models import replacement_from_error, resolve_chat_model
 from app.core.kv import get_kv
 from app.ai.tools import AgentTools, TOOL_DEFINITIONS
 
@@ -225,7 +225,7 @@ IMPORTANT: Stay in character and never reveal technical details or internal reas
         else:
             return await self._chat_gemini(message)
 
-    async def _chat_gemini(self, message: str) -> dict:
+    async def _chat_gemini(self, message: str, _retried: bool = False) -> dict:
         import asyncio
         history = await self.memory.get_history(self.user_id)
         chat = self.gemini_model.start_chat(history=history)
@@ -264,6 +264,15 @@ IMPORTANT: Stay in character and never reveal technical details or internal reas
                     if getattr(part, "text", None):
                         final_text += part.text
         except Exception as e:
+            replacement = None if _retried else replacement_from_error(e)
+            if replacement:
+                # The model was retired for this key; rebuild with the suggested one and retry once.
+                self.gemini_model = genai.GenerativeModel(
+                    model_name=replacement,
+                    tools=self.gemini_tools,
+                    system_instruction=self.SYSTEM_PROMPT,
+                )
+                return await self._chat_gemini(message, _retried=True)
             logger.error(f"Gemini API error: {e}", exc_info=True)
             return {
                 "response": "I'm sorry, I'm having a bit of trouble connecting right now. Please try again in a moment. 🔄",

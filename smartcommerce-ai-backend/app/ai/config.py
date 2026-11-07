@@ -9,7 +9,7 @@ class AISettings(BaseSettings):
     google_api_key: str = ""
     embedding_model: str = "models/gemini-embedding-001"
     embedding_dimensions: int = 768  # truncated via output_dimensionality
-    chat_model: str = "gemini-2.5-flash-lite"
+    chat_model: str = "gemini-3.5-flash-lite"
     
     # Provider Selection
     ai_provider: str = "gemini"  # "gemini" or "ollama"
