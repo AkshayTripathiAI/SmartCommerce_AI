@@ -20,6 +20,7 @@ class ChatResponse(BaseModel):
     """Schema for chat response."""
     response: str
     tool_calls: Optional[List[dict]] = None
+    error: Optional[str] = None  # exception type when the LLM call failed
 
 
 # --- Recommendation Schemas ---

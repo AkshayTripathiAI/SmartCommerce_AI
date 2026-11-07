@@ -60,6 +60,7 @@ async def chat_with_agent(
     return ChatResponse(
         response=result["response"],
         tool_calls=result.get("tool_calls"),
+        error=result.get("error"),
     )
 
 

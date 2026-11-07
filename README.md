@@ -4,7 +4,7 @@
 
 ![SmartCommerce AI product catalog](docs/products.png)
 
-**Live demo:** _coming soon_ · demo login `testuser` / `password123` (the free-tier backend sleeps when idle, so the first request can take up to a minute)
+**Live demo:** https://smart-commerce-ai-ivory.vercel.app · demo login `testuser` / `password123` (the free-tier backend sleeps when idle, so the first request can take up to a minute)
 
 ## ✨ Features
 

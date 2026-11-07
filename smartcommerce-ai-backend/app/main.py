@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import os
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -63,4 +64,8 @@ async def root():
 @app.get("/health", tags=["Health"])
 async def health_check():
     """Health check endpoint."""
-    return {"status": "ok", "bootstrap": bootstrap.state["status"]}
+    return {
+        "status": "ok",
+        "bootstrap": bootstrap.state["status"],
+        "commit": os.getenv("RENDER_GIT_COMMIT", "")[:7] or None,
+    }
