@@ -5,6 +5,7 @@ services:
     name: smartcommerce-ai-api
     runtime: docker
     plan: free
+    region: singapore
     rootDir: smartcommerce-ai-backend
     dockerfilePath: ./Dockerfile
     healthCheckPath: /health
