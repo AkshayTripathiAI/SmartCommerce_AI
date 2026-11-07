@@ -21,6 +21,33 @@ export default function LoginPage() {
         full_name: '',
     })
 
+    // Each visitor gets a throwaway account so carts, chat history and rate limits aren't shared.
+    async function continueAsGuest() {
+        setError('')
+        setLoading(true)
+        try {
+            const id = Math.random().toString(36).slice(2, 10)
+            const res = await fetch('/api/v1/auth/register', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    username: `guest_${id}`,
+                    email: `guest_${id}@guest.smartcommerce.dev`,
+                    password: crypto.randomUUID(),
+                    full_name: 'Guest',
+                }),
+            })
+            if (!res.ok) throw new Error('register failed')
+            const data = await res.json()
+            setAuth(data.user, data.access_token)
+            router.push('/')
+        } catch {
+            setError('Could not start a guest session. The demo server may still be waking up; try again in a minute.')
+        } finally {
+            setLoading(false)
+        }
+    }
+
     async function handleSubmit(e: React.FormEvent) {
         e.preventDefault()
         setError('')
@@ -187,10 +214,19 @@ export default function LoginPage() {
                     </div>
                 </form>
 
-                {/* Demo credentials */}
+                {/* Demo access */}
                 {isLogin && (
                     <div className="mt-6 p-4 bg-gray-50 rounded-xl text-sm text-gray-600">
-                        <p className="font-medium mb-2">Demo Credentials:</p>
+                        <button
+                            type="button"
+                            onClick={continueAsGuest}
+                            disabled={loading}
+                            className="w-full mb-4 py-3 bg-gray-900 text-white rounded-xl font-semibold hover:bg-gray-800 transition-colors disabled:opacity-50"
+                        >
+                            Continue as guest
+                        </button>
+                        <p className="mb-3 text-xs text-gray-500">Creates a private demo account for you, so you can try the cart and the AI assistant right away.</p>
+                        <p className="font-medium mb-2">Or use the shared demo account:</p>
                         <p>Username: <code className="bg-gray-200 px-1 rounded">testuser</code></p>
                         <p>Password: <code className="bg-gray-200 px-1 rounded">password123</code></p>
                         <button

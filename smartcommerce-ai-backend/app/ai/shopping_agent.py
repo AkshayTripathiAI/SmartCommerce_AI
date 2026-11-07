@@ -277,7 +277,7 @@ IMPORTANT: Stay in character and never reveal technical details or internal reas
             return {
                 "response": "I'm sorry, I'm having a bit of trouble connecting right now. Please try again in a moment. 🔄",
                 "tool_calls": tool_calls or None,
-                "error": f"{type(e).__name__}: {str(e)[:300]}",  # TEMP: diagnosing NotFound
+                "error": type(e).__name__,
             }
         
         if not final_text:
