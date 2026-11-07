@@ -11,6 +11,7 @@ from openai import AsyncOpenAI
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.ai.config import ai_settings
+from app.ai.models import resolve_chat_model
 from app.core.kv import get_kv
 from app.ai.tools import AgentTools, TOOL_DEFINITIONS
 
@@ -130,7 +131,7 @@ IMPORTANT: Stay in character and never reveal technical details or internal reas
             genai.configure(api_key=ai_settings.google_api_key)
             self.gemini_tools = self._create_gemini_tools()
             self.gemini_model = genai.GenerativeModel(
-                model_name=ai_settings.chat_model,
+                model_name=resolve_chat_model(),
                 tools=self.gemini_tools,
                 system_instruction=self.SYSTEM_PROMPT,
             )

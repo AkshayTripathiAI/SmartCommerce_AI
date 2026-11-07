@@ -13,7 +13,15 @@ class RAGService:
     
     def __init__(self):
         genai.configure(api_key=ai_settings.google_api_key)
-        self.model = genai.GenerativeModel(ai_settings.chat_model)
+        self._model = None
+
+    @property
+    def model(self):
+        # Created lazily so the model name can be resolved against the live model list.
+        if self._model is None:
+            from app.ai.models import resolve_chat_model
+            self._model = genai.GenerativeModel(resolve_chat_model())
+        return self._model
     
     async def search_policies(
         self,

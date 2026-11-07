@@ -9,6 +9,7 @@ from app.config import settings
 from app.api.v1 import router as api_v1_router
 from app.db import init_db
 from app import bootstrap
+from app.ai import models
 
 logging.basicConfig(level=logging.INFO)
 
@@ -68,4 +69,5 @@ async def health_check():
         "status": "ok",
         "bootstrap": bootstrap.state["status"],
         "commit": os.getenv("RENDER_GIT_COMMIT", "")[:7] or None,
+        "chat_model": models.resolved_model(),
     }
